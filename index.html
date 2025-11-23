@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>オークション (統合版)</title>
+<title>オークション (Online Fix)</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <style>
-/* ■■■ CSS: デザイン設定 ■■■ */
+/* デザイン設定 */
 :root { --bg: #2d5e2e; --primary: #f39c12; --danger: #e74c3c; --blue: #3498db; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -17,19 +17,18 @@ body {
     user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 
-/* 画面切り替え用 */
+/* 画面切り替え */
 .screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .hidden { display: none !important; }
 
-/* タイトル・ロビー */
+/* ボタン・入力 */
 h1 { color: var(--primary); font-size: 2.5rem; margin-bottom: 30px; text-shadow: 2px 2px 0 #000; }
 .btn-lg { padding: 15px 40px; font-size: 1.2rem; color: white; border: none; border-radius: 50px; margin: 10px; cursor: pointer; width: 80%; max-width: 300px; font-weight: bold; box-shadow: 0 4px 0 rgba(0,0,0,0.4); }
-.btn-lg:active { transform: translateY(4px); box-shadow: none; }
 .btn-cpu { background: var(--primary); }
 .btn-online { background: var(--blue); }
 input { font-size: 1.2rem; padding: 10px; margin: 10px; text-align: center; width: 60%; border-radius: 5px; border: none; }
 
-/* ゲームコンテナ (決定版のデザイン) */
+/* ゲーム画面 */
 #game-container { flex: 1; display: flex; flex-direction: column; padding: 5px; box-sizing: border-box; width: 100%; max-width: 600px; margin: 0 auto; }
 .area-header { font-size: 0.8rem; opacity: 0.9; text-align: center; margin: 2px 0; }
 .card {
@@ -54,7 +53,6 @@ button { flex: 1; padding: 12px; border: none; border-radius: 5px; font-size: 1r
 button:disabled { background: #7f8c8d; opacity: 0.5; }
 #back-btn { position: absolute; top: 5px; left: 5px; padding: 5px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.5); width: auto; flex: none; z-index: 50; }
 
-/* モーダル */
 #modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
 #modal h2 { color: #f1c40f; font-size: 2rem; margin-bottom: 20px; }
 #modal p { font-size: 1.2rem; line-height: 1.6; text-align: center; margin-bottom: 30px; }
@@ -71,7 +69,6 @@ button:disabled { background: #7f8c8d; opacity: 0.5; }
 
 <div id="screen-lobby" class="screen hidden">
     <h2>オンライン対戦</h2>
-    <p>部屋IDを入力 または 作成</p>
     <input type="text" id="room-id-input" placeholder="部屋ID (例: 1234)">
     <div>
         <button class="btn-lg btn-cpu" onclick="createRoom()">部屋を作る</button>
@@ -150,7 +147,7 @@ try {
     }
 } catch(e) { console.error("Firebase Init Error", e); }
 
-// ■■■ ゲーム変数 (決定版ロジック用) ■■■
+// ■■■ ゲーム変数 ■■■
 let deck = [], pHand = [], cHand = [];
 let pList = null, cList = null;
 let pBid = [], cBid = [];
@@ -161,11 +158,11 @@ let tieCount = 0;
 
 // モード管理
 let gameMode = ''; // 'CPU' or 'ONLINE'
-let myRole = 'p1'; // Online用: 'p1'(Host) or 'p2'(Guest)
+let myRole = 'p1'; // Online: 'p1'(Host) or 'p2'(Guest)
 let roomId = null;
 let roomRef = null;
 
-// UI要素取得
+// UI要素
 const ui = {
     cCnt: document.getElementById('cpu-cnt'),
     cHand: document.getElementById('cpu-hand'),
@@ -187,7 +184,7 @@ const ui = {
     oppLabel: document.getElementById('opp-label')
 };
 
-// ■■■ 画面遷移とモード選択 ■■■
+// ■■■ 画面遷移 ■■■
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden'));
     document.getElementById('game-container').classList.add('hidden');
@@ -198,45 +195,36 @@ function showScreen(id) {
 function modeSelect(m) {
     gameMode = m;
     if (m === 'ONLINE') {
-        if(!db) return alert("通信エラー: インターネットを確認してください");
+        if(!db) return alert("通信エラー: Firebaseが読み込まれていません");
         showScreen('screen-lobby');
     } else {
-        // CPUモード開始
         myRole = 'p1';
-        showScreen('game');
         ui.oppName.innerText = "CPU";
         ui.oppLabel.innerText = "CPU";
-        init(); // 決定版の初期化を実行
+        showScreen('game');
+        init();
     }
 }
 
-// ■■■ ゲーム初期化 (CPU/Online共通) ■■■
+// ■■■ 初期化 ■■■
 function init() {
     deck = [];
     for(let i=0; i<2; i++) for(let v=1; v<=13; v++) deck.push({ val: v });
     shuffle(deck);
-
     pHand = []; cHand = [];
-    for(let v=1; v<=13; v++) {
-        pHand.push({ val: v });
-        cHand.push({ val: v });
-    }
+    for(let v=1; v<=13; v++) { pHand.push({ val: v }); cHand.push({ val: v }); }
 
     ui.modal.style.display = 'none';
     ui.log.innerHTML = '';
     
-    // Onlineモードならここで初期状態を送信
     if(gameMode === 'ONLINE' && myRole === 'p1') {
-        // Hostが初期状態を作る
-        syncToFirebase();
+        hostSyncAll(); // ホストが初期状態送信
     }
     
     startRound();
 }
 
-function resetGame() {
-    init();
-}
+function resetGame() { init(); }
 
 function startRound() {
     pList = null; cList = null;
@@ -258,11 +246,11 @@ function startRound() {
         phase = 'BID';
         ui.status.innerText = "入札フェーズ: カードを選んでください";
         updateView();
-        if(gameMode === 'ONLINE') syncToFirebase();
+        if(gameMode === 'ONLINE' && myRole === 'p1') hostSyncAll();
     }, 800);
 }
 
-// ■■■ プレイヤーアクション ■■■
+// ■■■ アクション ■■■
 function toggleCard(index) {
     if(phase !== 'BID' && phase !== 'COMPARE') return;
     if(phase === 'COMPARE' && turn !== 'PLAYER') return;
@@ -275,7 +263,7 @@ function toggleCard(index) {
 function action() {
     if(pSelect.length === 0) return alert("カードを選んでください");
     
-    // カード移動処理
+    // カード移動
     pSelect.sort((a,b) => b - a);
     let selectedCards = [];
     pSelect.forEach(idx => {
@@ -286,8 +274,6 @@ function action() {
     pSelect = [];
 
     const addVal = sum(selectedCards);
-
-    // バリデーション
     if(phase === 'COMPARE') {
         const currentP = sum(pBid);
         const currentC = sum(cBid);
@@ -299,7 +285,6 @@ function action() {
         }
     }
 
-    // 実行
     pBid = [...pBid, ...selectedCards];
     
     if(phase === 'BID') {
@@ -308,12 +293,13 @@ function action() {
             cpuSimultaneousBid();
             resolveSimultaneous();
         } else {
-            // Online: 入札したことを通知
-            syncToFirebase();
+            // Online: 自分のBidだけ送信
+            guestSendAction();
         }
     } else {
         log(`あなた: 追加 +${addVal} (計${sum(pBid)})`, "turn");
-        checkComparison(); // Onlineの場合もここでチェックしてSync
+        if(gameMode === 'CPU') checkComparison();
+        else guestSendAction();
     }
 }
 
@@ -333,64 +319,18 @@ function fold() {
             resolveWin('CPU');
         }
     } else {
-        // Online Fold
-        // 自分が降りたことをStateに記録する必要があるが、
-        // 簡易実装として「自分のBidを空にする」等のフラグを送る
-        // ここでは syncToFirebase 内で処理分岐させるのは複雑なので
-        // 特殊な状態として扱う
-        if(phase === 'BID') {
-            // Online Bid Fold
-            // ここでは簡易的に「負け」として扱う
-            resolveWin('CPU'); // CPU=相手
-        } else {
-            resolveWin('CPU');
-        }
-        syncToFirebase(); // 結果を送信
+        // Online: 降りフラグを送る(簡易: Bidを空でDone)
+        // 厳密にはFoldフラグが良いが、今回は簡易同期のため特殊処理
+        guestSendFold();
     }
 }
 
-// ■■■ CPU ロジック (決定版そのまま) ■■■
-function cpuSimultaneousBid() {
-    const decision = cpuDecideSimultaneous();
-    if(decision.type === 'BID') cBid = [...cBid, ...removeCards(cHand, decision.cards)];
-}
-function cpuDecideSimultaneous() {
-    const potVal = cList.val + 7;
-    const budget = potVal > 20 ? 8 : (potVal > 15 ? 5 : 2);
-    if(potVal < 5 && Math.random() > 0.8) return { type: 'FOLD' };
-    let bestCard = -1, minDiff = 99;
-    for(let i=0; i<cHand.length; i++) {
-        let diff = Math.abs(cHand[i].val - budget);
-        if(diff < minDiff) { minDiff = diff; bestCard = cHand[i].val; }
-    }
-    if(bestCard !== -1) return { type: 'BID', cards: [bestCard] };
-    return { type: 'FOLD' };
-}
-function cpuTurnComparison() {
-    const diff = sum(pBid) - sum(cBid);
-    const potVal = cList.val + 7;
-    if(sum(cBid) + diff + 1 > potVal && Math.random() > 0.3) {
-        log("CPU: 降り", "sys"); resolveWin('PLAYER'); return;
-    }
-    let candidates = cHand.filter(c => c.val > diff);
-    if(candidates.length === 0) {
-        log("CPU: 降り(手札なし)", "sys"); resolveWin('PLAYER'); return;
-    }
-    candidates.sort((a,b) => a.val - b.val);
-    const playCard = candidates[0];
-    cBid.push(...removeCards(cHand, [playCard.val]));
-    log(`CPU: 追加 +${playCard.val}`, "sys");
-    checkComparison();
-}
-
-// ■■■ フェーズ進行 (決定版ロジック) ■■■
+// ■■■ 進行ロジック ■■■
 function resolveSimultaneous() {
     updateView();
     if(cBid.length === 0 && gameMode === 'CPU') {
         log("CPU: 降り", "sys"); resolveWin('PLAYER'); return;
     }
-    // Onlineの場合は相手の入札待ちが必要だが、
-    // ここでは「Sync」によって相手の状態がcBidに入ってくる前提
     checkComparison();
 }
 
@@ -400,7 +340,7 @@ function checkComparison() {
     const cs = sum(cBid);
     updateView();
     
-    if(gameMode === 'ONLINE') syncToFirebase();
+    if(gameMode === 'ONLINE' && myRole === 'p1') hostSyncAll();
 
     if(ps === cs) {
         log(`同点(${ps})。同時追加へ`, "sys");
@@ -413,10 +353,10 @@ function checkComparison() {
             phase = 'BID';
             ui.status.innerText = "同点：追加カードを選んでください";
             updateView();
-            if(gameMode === 'ONLINE') syncToFirebase();
+            if(gameMode === 'ONLINE' && myRole === 'p1') hostSyncAll();
         }, 1000);
     } else if(ps > cs) {
-        turn = 'CPU'; // CPU = 相手
+        turn = 'CPU'; // CPU or 相手
         ui.status.innerText = "相手のターン...";
         updateView();
         if(gameMode === 'CPU') setTimeout(cpuTurnComparison, 1000);
@@ -431,20 +371,15 @@ function resolveWin(winner) {
     phase = 'RESOLVE';
     ui.lPlr.classList.remove('back'); ui.lPlr.innerText = pList.val;
     ui.lCpu.classList.remove('back'); ui.lCpu.innerText = cList.val;
-    
     log(`勝者: ${winner === 'PLAYER' ? 'あなた' : '相手'}`, "sys");
 
-    if(gameMode === 'ONLINE') syncToFirebase();
+    if(gameMode === 'ONLINE' && myRole === 'p1') hostSyncAll();
 
     setTimeout(() => {
         const pot = [pList, cList];
-        if(winner === 'PLAYER') {
-            pHand.push(...pot); cHand.push(...cBid);
-        } else {
-            cHand.push(...pot); pHand.push(...pBid);
-        }
-        pHand.sort((a,b) => a.val - b.val);
-        cHand.sort((a,b) => a.val - b.val);
+        if(winner === 'PLAYER') { pHand.push(...pot); cHand.push(...cBid); }
+        else { cHand.push(...pot); pHand.push(...pBid); }
+        pHand.sort((a,b) => a.val - b.val); cHand.sort((a,b) => a.val - b.val);
         startRound();
     }, 2500);
 }
@@ -462,9 +397,42 @@ function endGame() {
     else if(cs > ps) msg += "相手の勝利...";
     else msg += "引き分け";
     ui.modalMsg.innerHTML = msg; ui.modal.style.display = 'flex';
+    if(gameMode === 'ONLINE' && myRole === 'p1') hostSyncAll();
 }
 
-// ■■■ オンライン機能 (State Sync) ■■■
+// ■■■ CPU AI ■■■
+function cpuSimultaneousBid() {
+    const d = cpuDecideSimultaneous();
+    if(d.type === 'BID') cBid = [...cBid, ...removeCards(cHand, d.cards)];
+}
+function cpuDecideSimultaneous() {
+    const pot = cList.val + 7;
+    const bdg = pot > 20 ? 8 : (pot > 15 ? 5 : 2);
+    if(pot < 5 && Math.random() > 0.8) return { type: 'FOLD' };
+    let best = -1, min = 99;
+    for(let i=0; i<cHand.length; i++) {
+        let d = Math.abs(cHand[i].val - bdg);
+        if(d < min) { min = d; best = cHand[i].val; }
+    }
+    if(best !== -1) return { type: 'BID', cards: [best] };
+    return { type: 'FOLD' };
+}
+function cpuTurnComparison() {
+    const diff = sum(pBid) - sum(cBid);
+    const pot = cList.val + 7;
+    if(sum(cBid) + diff + 1 > pot && Math.random() > 0.3) {
+        log("CPU: 降り", "sys"); resolveWin('PLAYER'); return;
+    }
+    let cands = cHand.filter(c => c.val > diff);
+    if(cands.length === 0) { log("CPU: 降り(手札なし)", "sys"); resolveWin('PLAYER'); return; }
+    cands.sort((a,b) => a.val - b.val);
+    const c = cands[0];
+    cBid.push(...removeCards(cHand, [c.val]));
+    log(`CPU: 追加 +${c.val}`, "sys");
+    checkComparison();
+}
+
+// ■■■ Online Logic (Fix) ■■■
 function createRoom() {
     const id = Math.floor(1000 + Math.random() * 9000).toString();
     initRoom(id, 'p1');
@@ -480,90 +448,113 @@ function initRoom(id, role) {
     document.getElementById('lobby-msg').innerText = "接続中...";
     
     if(role === 'p1') {
-        // ホストはゲーム初期化してから開始
-        myRole = 'p1';
-        ui.oppName.innerText = "Guest";
-        ui.oppLabel.innerText = "Guest";
+        ui.oppName.innerText = "Guest"; ui.oppLabel.innerText = "Guest";
         showScreen('game');
-        init(); // ここで初期Deck作成 -> syncToFirebase
+        init();
     } else {
-        // ゲストはデータを購読開始
         roomRef.get().then(s => {
             if(!s.exists()) return alert("部屋がありません");
             myRole = 'p2';
-            ui.oppName.innerText = "Host";
-            ui.oppLabel.innerText = "Host";
+            ui.oppName.innerText = "Host"; ui.oppLabel.innerText = "Host";
             showScreen('game');
-            // データ監視開始
-            roomRef.on('value', onRemoteUpdate);
+            roomRef.on('value', onGuestSync);
         });
     }
 }
 
-function syncToFirebase() {
+// Host: 全権限を持つ
+function hostSyncAll() {
     if(!roomRef) return;
-    // Firebase上の p1 = Host(pHand), p2 = Guest(cHand) とマッピング
-    // 自分のデータを送信
-    const updates = {};
-    if(myRole === 'p1') {
-        // Hostは全体の状態も管理権限を持つ
-        updates['deck'] = deck;
-        updates['p1_hand'] = pHand;
-        updates['p1_bid'] = pBid;
-        updates['p1_list'] = pList;
-        // cHand, cBid, cList は相手(p2)のものなので、ここでは上書きしないのが理想だが
-        // 簡易実装として「解決フェーズ」ではHostが計算して上書きする
-        if(phase === 'RESOLVE' || phase === 'LISTING' || phase === 'SETUP') {
-             updates['p2_hand'] = cHand;
-             updates['p2_bid'] = cBid;
-             updates['p2_list'] = cList;
-        }
-        updates['phase'] = phase;
-        updates['turn'] = turn;
-    } else {
-        // Guestは自分の手札情報のみ送る
-        updates['p2_hand'] = pHand; // GuestにとってのpHandは、Server上のp2_hand
-        updates['p2_bid'] = pBid;
-        // updates['p2_list'] = pList; // GuestはList操作しない
-    }
-    roomRef.update(updates);
+    roomRef.update({
+        deck: deck, phase: phase, turn: turn,
+        p1_hand: pHand, p1_bid: pBid, p1_list: pList,
+        p2_hand: cHand, p2_bid: cBid, p2_list: cList // Host視点のp2=Guest
+    });
+    // HostもListener登録して、Guestの入札を検知
+    roomRef.on('value', onHostSync);
 }
 
-function onRemoteUpdate(snapshot) {
-    const val = snapshot.val();
+// Guest: 自分のアクションのみ送信 (部分更新)
+function guestSendAction() {
+    if(!roomRef) return;
+    // Guest視点のpHandは、Server上のp2_hand
+    roomRef.update({
+        p2_hand: pHand,
+        p2_bid: pBid,
+        p2_action: Date.now() // アクション検知用トリガー
+    });
+}
+function guestSendFold() {
+    if(!roomRef) return;
+    roomRef.update({
+        p2_fold: true,
+        p2_action: Date.now()
+    });
+}
+
+// Host側受信: Guestの動きを取り込む
+function onHostSync(snap) {
+    const val = snap.val();
     if(!val) return;
     
-    // 受信データをローカル変数に反映 (変数を入れ替える)
-    // Host(p1)なら: server.p1 -> local.pHand, server.p2 -> local.cHand
-    // Guest(p2)なら: server.p2 -> local.pHand, server.p1 -> local.cHand
+    // Guestが入札・アクションしたか？
+    // local cHand/cBid を更新
+    if(val.p2_hand) cHand = val.p2_hand;
+    if(val.p2_bid) cBid = val.p2_bid;
     
-    if(myRole === 'p1') {
-        // Hostは自分の操作で即時反映しているので、相手のアクション(p2)のみ取り込む
-        if(val.p2_hand) cHand = val.p2_hand;
-        if(val.p2_bid) cBid = val.p2_bid;
-        // if(val.p2_list) cList = val.p2_list;
-    } else {
-        // GuestはHostの進行(deck, phase, turn)に完全従属
-        if(val.deck) deck = val.deck;
-        if(val.phase) phase = val.phase;
-        if(val.turn) turn = val.turn;
-        
-        if(val.p2_hand) pHand = val.p2_hand; // 自分の手札 (Server上ではp2)
-        if(val.p2_bid) pBid = val.p2_bid;
-        if(val.p2_list) pList = val.p2_list; // GuestのList
-        
-        if(val.p1_hand) cHand = val.p1_hand; // 相手(Host)の手札
-        if(val.p1_bid) cBid = val.p1_bid;
-        if(val.p1_list) cList = val.p1_list;
+    // Fold判定
+    if(val.p2_fold) {
+        roomRef.update({ p2_fold: null }); // フラグリセット
+        log("相手: 降り", "turn");
+        resolveWin('PLAYER'); // Host勝ち
+        return;
+    }
+
+    // 同時入札の解決
+    if(phase === 'BID' && pBid.length > 0 && cBid.length > 0) {
+        resolveSimultaneous();
+    }
+    // 比較フェーズの解決
+    else if(phase === 'COMPARE' && turn === 'CPU') { // CPU=GuestTurn
+        // Guestが動いた形跡(cBid増えたなど)があればチェック
+        checkComparison();
     }
     
     updateView();
 }
 
+// Guest側受信: Hostの決定に従う
+function onGuestSync(snap) {
+    const val = snap.val();
+    if(!val) return;
 
-// ■■■ ヘルパー・描画 ■■■
+    // HostのデータをLocalに反映
+    if(val.deck) deck = val.deck;
+    if(val.phase) phase = val.phase;
+    if(val.turn) turn = val.turn;
+    
+    // Hostの手札(p1) -> Local cHand
+    if(val.p1_hand) cHand = val.p1_hand;
+    if(val.p1_bid) cBid = val.p1_bid;
+    if(val.p1_list) cList = val.p1_list;
+    
+    // Guestの手札(p2) -> Local pHand
+    // ★重要: 自分が操作中は上書きしない制御が必要だが、今回はHost絶対主義で上書き
+    if(val.p2_hand) pHand = val.p2_hand;
+    if(val.p2_bid) pBid = val.p2_bid;
+    if(val.p2_list) pList = val.p2_list;
+    
+    // 勝敗表示など
+    if(phase === 'RESOLVE' && val.phase === 'RESOLVE') {
+        // Host側で処理が進むので、Guestは見るだけ
+    }
+
+    updateView();
+}
+
+// ■■■ Utils ■■■
 function shuffle(arr) { for(let i=arr.length-1; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
-function sum(cards) { return (cards||[]).reduce((a,c) => a + c.val, 0); }
+function sum(cards) { return (cards||[]).reduce((a,b) => a + b.val, 0); }
 function removeCards(hand, vals) {
     let ret = [];
     vals.forEach(v => { const i = hand.findIndex(c => c.val === v); if(i !== -1) { ret.push(hand[i]); hand.splice(i, 1); } });
@@ -573,59 +564,23 @@ function log(msg, type) {
     const d = document.createElement('div'); d.className = type === 'turn' ? 'log-turn' : 'log-sys'; d.innerText = msg;
     ui.log.prepend(d);
 }
-
 function updateView() {
-    ui.deckN.innerText = deck.length;
-    ui.cCnt.innerText = cHand.length;
-    
+    ui.deckN.innerText = deck.length; ui.cCnt.innerText = cHand.length;
     ui.cHand.innerHTML = '';
-    cHand.forEach(() => {
-        const d = document.createElement('div'); d.className = 'card back'; d.style.width = '25px'; d.style.height = '38px';
-        ui.cHand.appendChild(d);
-    });
-
+    cHand.forEach(() => { const d = document.createElement('div'); d.className = 'card back'; d.style.width = '25px'; d.style.height = '38px'; ui.cHand.appendChild(d); });
     ui.pHand.innerHTML = '';
-    pHand.forEach((c, i) => {
-        const d = document.createElement('div');
-        d.className = 'card' + (pSelect.includes(i) ? ' selected' : '');
-        d.innerText = c.val;
-        d.onclick = () => toggleCard(i);
-        ui.pHand.appendChild(d);
-    });
-
-    renderCards(ui.pBid, pBid, false);
-    ui.pSum.innerText = sum(pBid);
-    
-    // CPU(相手)の入札: BIDフェーズで自分が未入札なら隠す(簡易) -> Onlineだと同期ズレるので調整
-    // ここでは「相手の入札」はBIDフェーズ中は常に隠す
-    const hideCpu = (phase === 'BID');
-    renderCards(ui.cBid, cBid, hideCpu);
-    ui.cSum.innerText = hideCpu ? '?' : sum(cBid);
-
+    pHand.forEach((c, i) => { const d = document.createElement('div'); d.className = 'card' + (pSelect.includes(i) ? ' selected' : ''); d.innerText = c.val; d.onclick = () => toggleCard(i); ui.pHand.appendChild(d); });
+    renderCards(ui.pBid, pBid, false); ui.pSum.innerText = sum(pBid);
+    const hideCpu = (phase === 'BID'); renderCards(ui.cBid, cBid, hideCpu); ui.cSum.innerText = hideCpu ? '?' : sum(cBid);
     if(pList) { ui.lPlr.innerText = pList.val; ui.lPlr.classList.remove('back'); } else ui.lPlr.innerText = '';
-
-    if(cList) {
-        if(phase === 'RESOLVE') { ui.lCpu.innerText = cList.val; ui.lCpu.classList.remove('back'); }
-        else { ui.lCpu.innerText = '?'; ui.lCpu.classList.add('back'); }
-    } else ui.lCpu.innerText = '';
-
+    if(cList) { if(phase === 'RESOLVE') { ui.lCpu.innerText = cList.val; ui.lCpu.classList.remove('back'); } else { ui.lCpu.innerText = '?'; ui.lCpu.classList.add('back'); } } else ui.lCpu.innerText = '';
     const isMyTurn = (phase === 'BID') || (phase === 'COMPARE' && turn === 'PLAYER');
-    ui.btnAct.disabled = !isMyTurn;
-    ui.btnFold.disabled = !isMyTurn;
+    ui.btnAct.disabled = !isMyTurn; ui.btnFold.disabled = !isMyTurn;
     ui.btnAct.innerText = phase === 'BID' ? '入札' : '追加';
     ui.status.style.background = isMyTurn ? 'rgba(243, 156, 18, 0.4)' : 'rgba(0,0,0,0.3)';
 }
-
-// ★修正済み: style.fontSize を使用
 function renderCards(el, cards, hidden) {
-    el.innerHTML = '';
-    (cards||[]).forEach(c => {
-        const d = document.createElement('div');
-        d.className = 'card ' + (hidden ? 'back' : '');
-        d.innerText = hidden ? '?' : c.val;
-        d.style.width = '36px'; d.style.height = '50px'; d.style.fontSize = '1rem';
-        el.appendChild(d);
-    });
+    el.innerHTML = ''; (cards||[]).forEach(c => { const d = document.createElement('div'); d.className = 'card ' + (hidden ? 'back' : ''); d.innerText = hidden ? '?' : c.val; d.style.width = '36px'; d.style.height = '50px'; d.style.fontSize = '1rem'; el.appendChild(d); });
 }
 </script>
 </body>
