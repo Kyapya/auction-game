@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>オークション (Final Ver)</title>
+<title>オークション (Logic Fix)</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <style>
-/* デザイン設定 */
+/* デザイン設定（変更なし） */
 :root { --bg: #2d5e2e; --primary: #f39c12; --danger: #e74c3c; --blue: #3498db; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -148,7 +148,6 @@ let pBid = [], cBid = [];
 let pSelect = [];
 let phase = 'SETUP';
 let turn = null;
-let tieCount = 0;
 
 let gameMode = ''; 
 let myRole = 'p1'; 
@@ -197,7 +196,7 @@ function modeSelect(m) {
     }
 }
 
-// ■ 初期化 (CPU) - 変更なし
+// ■ 初期化 (CPU)
 function initLocal() {
     deck = []; for(let i=0; i<2; i++) for(let v=1; v<=13; v++) deck.push({ val: v }); shuffle(deck);
     pHand = []; cHand = []; for(let v=1; v<=13; v++) { pHand.push({ val: v }); cHand.push({ val: v }); }
@@ -205,9 +204,8 @@ function initLocal() {
     startRound();
 }
 
-// ■ オンライン接続ロジック (手動ID対応)
+// ■ オンライン接続
 function createRoom() {
-    // 修正: 入力欄のIDを使用する
     const id = document.getElementById('room-id-input').value;
     if(!id) return alert("部屋IDを入力してください");
     
@@ -255,7 +253,7 @@ function joinRoom() {
     });
 }
 
-// ■ オンライン同期 (ホストの計算、ゲストの反映)
+// ■ オンライン同期
 function onSync(snapshot) {
     const val = snapshot.val();
     if(!val) return;
@@ -265,12 +263,10 @@ function onSync(snapshot) {
     turn = val.turn;
     
     if (myRole === 'p1') {
-        // Host: p1=Self, p2=Opp
         pHand = val.p1_hand || []; pBid = val.p1_bid || []; pList = val.p1_list;
         cHand = val.p2_hand || []; cBid = val.p2_bid || []; cList = val.p2_list;
-        hostGameLoop(val); // ホストだけが進行判定を行う
+        hostGameLoop(val); // ホストが進行判定
     } else {
-        // Guest: p2=Self, p1=Opp
         pHand = val.p2_hand || []; pBid = val.p2_bid || []; pList = val.p2_list;
         cHand = val.p1_hand || []; cBid = val.p1_bid || []; cList = val.p1_list;
     }
@@ -282,7 +278,7 @@ function onSync(snapshot) {
     updateView();
 }
 
-// ホスト専用ループ
+// ホスト専用ループ (ゲームマスター)
 function hostStartRound() {
     if(deck.length < 2) { roomRef.update({ phase: 'END', msg: "ゲーム終了" }); return; }
     let nd = [...deck];
@@ -299,74 +295,80 @@ function hostStartRound() {
 }
 
 function hostGameLoop(val) {
+    // 1. BIDフェーズの完了判定
     if(phase === 'BID') {
-        // 両者アクション完了
         if(val.p1_done && val.p2_done) {
-            resolveSimultaneousOnline(val);
+            resolveSimultaneousOnline();
         }
     }
+    // 2. COMPAREフェーズの常時監視 (ここが修正ポイント)
+    else if(phase === 'COMPARE') {
+        checkComparisonOnline(); // 常に最新スコアを監視してターンを制御
+    }
     
-    // 降りの検知 (即解決)
-    if(val.p1_fold && phase !== 'RESOLVE') resolveWinOnline('p2'); // P1降り -> P2勝ち
-    else if(val.p2_fold && phase !== 'RESOLVE') resolveWinOnline('p1'); // P2降り -> P1勝ち
+    // 降りの検知
+    if(val.p1_fold && phase !== 'RESOLVE') resolveWinOnline('p2');
+    else if(val.p2_fold && phase !== 'RESOLVE') resolveWinOnline('p1');
 }
 
-function resolveSimultaneousOnline(val) {
-    // フラグリセット
+function resolveSimultaneousOnline() {
     roomRef.update({ p1_done: false, p2_done: false });
+    checkComparisonOnline(); // 比較ロジックへ
+}
 
-    // 同時降り (Bid空で判定) ※Foldフラグと併用
-    const s1 = sum(pBid);
-    const s2 = sum(cBid);
+function checkComparisonOnline() {
+    const s1 = sum(pBid); // Host Bid
+    const s2 = sum(cBid); // Guest Bid
     
+    // 現在の状況を計算
+    let nextPhase = 'COMPARE';
+    let nextTurn = null;
+    let nextMsg = "";
+
     if(s1 === s2) {
-        roomRef.update({ phase: 'BID', msg: `同点(${s1})。追加してください。` });
+        nextPhase = 'BID';
+        nextMsg = `同点(${s1})。追加してください。`;
     } else if(s1 > s2) {
-        roomRef.update({ phase: 'COMPARE', turn: 'p2', msg: "Guestのターン" });
+        nextTurn = 'p2'; // Guest (Small) turn
+        nextMsg = "Guestのターン";
     } else {
-        roomRef.update({ phase: 'COMPARE', turn: 'p1', msg: "Hostのターン" });
+        nextTurn = 'p1'; // Host (Small) turn
+        nextMsg = "Hostのターン";
+    }
+
+    // Firebaseの現在の状態と違う場合のみ更新（無限ループ防止）
+    // phaseがBIDに戻る場合、またはターンのプレイヤーが変わる場合
+    if (phase !== nextPhase || turn !== nextTurn) {
+         roomRef.update({
+             phase: nextPhase,
+             turn: nextTurn,
+             msg: nextMsg
+         });
     }
 }
 
-// ★修正: オンライン用の勝敗解決ロジック (CPU戦と同等の処理)
 function resolveWinOnline(winnerRole) {
-    // winnerRole: 'p1' or 'p2'
     const winnerName = (winnerRole === myRole) ? 'あなた' : '相手';
-    
-    // Firebase上の状態を更新して解決フェーズへ
-    roomRef.update({
-        phase: 'RESOLVE',
-        msg: `勝者: ${winnerName}`
-    });
+    roomRef.update({ phase: 'RESOLVE', msg: `勝者: ${winnerName}` });
 
-    // カード分配計算 (Hostが計算してDB更新)
-    // ルール: 勝者は場(Pot)を入手、敗者は自分のBidを回収。勝者のBidは消滅。
-    // Pot = p1_list + p2_list
     const pot = [pList, cList];
-    
     let new_p1_hand = [...pHand];
-    let new_p2_hand = [...cHand];
+    let new_p2_hand = [...cHand]; // Host視点でのp2
     
     if(winnerRole === 'p1') {
-        // P1 Win
         new_p1_hand.push(...pot);       // P1 gets Pot
         new_p2_hand.push(...cBid);      // P2 (Loser) gets P2 Bid back
-        // P1 Bid is trashed (not added to anyone)
     } else {
-        // P2 Win
         new_p2_hand.push(...pot);       // P2 gets Pot
         new_p1_hand.push(...pBid);      // P1 (Loser) gets P1 Bid back
     }
     
-    // ソート
     new_p1_hand.sort((a,b)=>a.val-b.val);
     new_p2_hand.sort((a,b)=>a.val-b.val);
     
-    // DB反映 -> 次のラウンドへ
     setTimeout(() => {
         roomRef.update({
-            p1_hand: new_p1_hand,
-            p2_hand: new_p2_hand,
+            p1_hand: new_p1_hand, p2_hand: new_p2_hand,
             p1_bid: [], p2_bid: [],
             p1_list: null, p2_list: null,
             p1_fold: false, p2_fold: false
@@ -380,7 +382,6 @@ function resolveWinOnline(winnerRole) {
 function toggleCard(index) {
     if(phase!=='BID' && phase!=='COMPARE') return;
     if(phase==='COMPARE') {
-        // ターン制チェック
         if(gameMode==='ONLINE') { if(turn !== myRole) return; }
         else { if(turn !== 'PLAYER') return; }
     }
@@ -396,31 +397,28 @@ function action() {
     pSelect.forEach(i => { cards.push(pHand[i]); pHand.splice(i,1); });
     pSelect=[]; cards.reverse();
 
-    // 比較フェーズのバリデーション
-    if(phase==='COMPARE') {
-        const myS = sum([...pBid, ...cards]);
-        const opS = sum(cBid);
-        if(myS <= opS) {
-            pHand.push(...cards); pHand.sort((a,b)=>a.val-b.val); updateView();
-            return alert("相手を上回る必要があります");
-        }
-    }
-
+    // 手元の表示更新
     pBid = [...pBid, ...cards];
     updateView();
 
     if(gameMode === 'ONLINE') {
+        // バリデーション: OnlineではHostが後で修正してくれるが、無駄な通信を減らすため
+        if(phase==='COMPARE') {
+            const myS = sum(pBid); const opS = sum(cBid);
+            if(myS <= opS) {
+                // 手札戻す
+                pHand.push(...cards); pHand.sort((a,b)=>a.val-b.val);
+                pBid = pBid.slice(0, pBid.length - cards.length); // Bid戻す
+                updateView();
+                return alert("相手を上回る必要があります");
+            }
+        }
+
         let u = {};
         u[myRole + '_hand'] = pHand;
         u[myRole + '_bid'] = pBid;
         u[myRole + '_done'] = true;
         roomRef.update(u);
-        
-        // 比較フェーズの即時チェック（Hostトリガー用）
-        if(phase==='COMPARE') {
-            // 相手へターンを渡す or 解決待ち
-            // Hostが監視しているのでデータ送るだけでOK
-        }
     } else {
         log("あなた: 入札/追加", "turn");
         if(phase==='BID') { cpuSimultaneousBid(); resolveSimultaneous(); }
@@ -433,14 +431,11 @@ function fold() {
     log("あなた: 降り", "turn");
     
     if(gameMode === 'ONLINE') {
-        // ★修正: 降りフラグを送信
         let u = {};
         u[myRole + '_fold'] = true;
         u[myRole + '_done'] = true; 
         roomRef.update(u);
-        // HostのhostGameLoopがこれを検知して resolveWinOnline を呼ぶ
     } else {
-        // CPU戦の降り処理（変更なし）
         if(phase==='BID') {
             const cpu = cpuDecideSimultaneous();
             if(cpu.type==='FOLD') {
