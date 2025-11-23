@@ -3,115 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>オークション Game</title>
-<!-- Firebase SDK -->
+<title>オークション (Safe Mode)</title>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <style>
+/* デザイン設定 */
 :root { --bg: #2d5e2e; --primary: #f39c12; --danger: #e74c3c; --blue: #3498db; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--bg); color: white; margin: 0; padding: 0;
+    font-family: sans-serif; background: var(--bg); color: white; margin: 0; padding: 0;
     height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
     user-select: none; -webkit-user-select: none;
 }
 #container { flex: 1; display: flex; flex-direction: column; padding: 5px; max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 
-/* 画面切り替え用 */
+/* 画面 */
 .screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .hidden { display: none !important; }
 
-/* タイトル・ロビー */
-h1 { color: var(--primary); margin-bottom: 30px; font-size: 2.5rem; text-shadow: 2px 2px 0 #000; }
-.btn-lg { padding: 15px 40px; font-size: 1.2rem; color: white; border: none; border-radius: 50px; margin: 10px; cursor: pointer; width: 80%; max-width: 300px; font-weight: bold; box-shadow: 0 4px 0 rgba(0,0,0,0.4); transition: transform 0.1s; }
-.btn-lg:active { transform: translateY(4px); box-shadow: none; }
+/* ボタン類 */
+h1 { color: var(--primary); font-size: 2.5rem; margin-bottom: 20px; }
+button { cursor: pointer; }
+.btn-lg { padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 50px; margin: 10px; width: 80%; max-width: 300px; font-weight: bold; color: #fff; }
 .btn-cpu { background: var(--primary); }
 .btn-online { background: var(--blue); }
-input { font-size: 1.2rem; padding: 10px; margin: 10px; text-align: center; width: 60%; border-radius: 5px; border: none; }
 
-/* ゲーム画面 */
-.area-header { font-size: 0.8rem; text-align: center; margin: 2px 0; opacity: 0.8; }
-.card { width: 50px; height: 72px; background: white; color: black; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem; border: 1px solid #999; position: relative; margin: 2px; }
-.card.back { background: repeating-linear-gradient(45deg, #606dbc, #606dbc 5px, #465298 5px, #465298 10px); color: transparent; }
-.card.selected { border: 3px solid #f1c40f; transform: translateY(-10px); z-index: 10; }
-.hand-area { display: flex; flex-wrap: wrap; justify-content: center; min-height: 80px; align-content: center; }
-.field-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 5px; margin: 5px 0; flex: 1; }
-.bid-col { display: flex; flex-direction: column; align-items: center; width: 40%; }
-.center-col { display: flex; flex-direction: column; align-items: center; width: 20%; font-size: 0.7rem; }
-#status { text-align: center; background: rgba(0,0,0,0.3); padding: 5px; margin-bottom: 5px; font-weight: bold; border-radius: 4px; }
-#controls { display: flex; gap: 10px; padding: 5px; }
-button.act { flex: 1; padding: 12px; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; color: white; background: var(--primary); cursor: pointer; }
-button.fold { background: var(--danger); }
-button:disabled { opacity: 0.5; background: #7f8c8d; cursor: default; }
-#log { height: 60px; overflow-y: auto; background: rgba(0,0,0,0.4); font-size: 0.75rem; padding: 4px; border-radius: 4px; }
-.log-sys { color: #bdc3c7; } .log-turn { color: #f1c40f; }
-#back-btn { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+/* ゲーム内要素 */
+.card { width: 45px; height: 64px; background: white; color: black; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.1rem; border: 1px solid #999; margin: 2px; }
+.card.back { background: repeating-linear-gradient(45deg, #606dbc, 10px, #465298 10px, #465298 20px); color: transparent; }
+.card.selected { border: 3px solid #f1c40f; transform: translateY(-10px); }
+.hand-area { display: flex; flex-wrap: wrap; justify-content: center; min-height: 70px; }
+.field-row { display: flex; justify-content: space-between; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 5px; margin: 5px 0; flex: 1; }
+.col-bid { width: 40%; display: flex; flex-direction: column; align-items: center; }
+.col-center { width: 20%; display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; }
+#controls { display: flex; gap: 5px; padding: 5px; }
+.act-btn { flex: 1; padding: 15px; border: none; border-radius: 5px; font-weight: bold; color: white; font-size: 1rem; }
+#log { height: 60px; overflow-y: auto; background: rgba(0,0,0,0.5); font-size: 0.8rem; padding: 5px; }
+#debug-msg { color: #e74c3c; background: #fff; padding: 5px; border-radius: 4px; font-size: 0.8rem; margin-top: 10px; display: none; }
 </style>
 </head>
 <body>
 
-<!-- 1. タイトル画面 -->
 <div id="screen-title" class="screen">
     <h1>AUCTION</h1>
-    <button class="btn-lg btn-cpu" onclick="modeSelect('CPU')">ひとりで遊ぶ<br><span style="font-size:0.8rem">(CPU戦)</span></button>
-    <button class="btn-lg btn-online" onclick="modeSelect('ONLINE')">友達と遊ぶ<br><span style="font-size:0.8rem">(オンライン)</span></button>
+    <button class="btn-lg btn-cpu" onclick="startCpuMode()">ひとりで遊ぶ</button>
+    <button class="btn-lg btn-online" onclick="startOnlineMode()">友達と遊ぶ</button>
+    <div id="debug-msg"></div>
 </div>
 
-<!-- 2. ロビー画面 (オンライン用) -->
 <div id="screen-lobby" class="screen hidden">
-    <h2>オンライン対戦</h2>
-    <p>部屋IDを入力 または 作成</p>
-    <input type="text" id="room-id-input" placeholder="部屋ID (例: 1234)">
+    <h2>オンライン設定</h2>
+    <input type="text" id="room-id" placeholder="部屋ID (例: 1234)" style="font-size:1.2rem; padding:10px; text-align:center; margin:10px;">
     <div>
         <button class="btn-lg btn-cpu" onclick="createRoom()">部屋を作る</button>
         <button class="btn-lg btn-online" onclick="joinRoom()">部屋に入る</button>
     </div>
-    <p id="lobby-msg" style="color: #f1c40f; margin-top: 20px;"></p>
-    <button onclick="location.reload()" style="margin-top:30px; background:none; border:1px solid #fff; color:#fff; padding:5px 10px; border-radius:4px;">戻る</button>
+    <p id="lobby-status" style="color:#f1c40f; margin-top:10px;"></p>
+    <button onclick="location.reload()" style="margin-top:20px; padding:10px; background:none; border:1px solid white; color:white;">戻る</button>
 </div>
 
-<!-- 3. ゲーム画面 -->
 <div id="container" class="hidden">
-    <button id="back-btn" onclick="location.reload()">TOPへ</button>
-    <div><div class="area-header">相手 (<span id="opp-role">Waiting</span>)</div><div class="hand-area" id="opp-hand"></div></div>
+    <button onclick="location.reload()" style="position:absolute; top:5px; left:5px; z-index:10;">TOP</button>
     
+    <div style="text-align:center; font-size:0.8rem;">相手: <span id="p2-name">...</span></div>
+    <div class="hand-area" id="p2-hand"></div>
+
     <div class="field-row">
-        <div class="bid-col">
-            <div class="area-header">相手 入札</div><div class="hand-area" id="opp-bid"></div>
-            <div>計: <span id="opp-sum">0</span></div>
-        </div>
-        <div class="center-col">
-            <div class="area-header">出品</div>
-            <div id="list-opp" class="card back">?</div>
-            <div id="list-me" class="card back">?</div>
+        <div class="col-bid"><div>相手 入札</div><div class="hand-area" id="p2-bid"></div><div>計:<span id="p2-sum">0</span></div></div>
+        <div class="col-center">
+            <div>出品</div>
+            <div id="list-p2" class="card back">?</div>
+            <div id="list-p1" class="card back">?</div>
             <div style="margin-top:5px">山:<span id="deck-n">0</span></div>
         </div>
-        <div class="bid-col">
-            <div class="area-header">あなた 入札</div><div class="hand-area" id="my-bid"></div>
-            <div>計: <span id="my-sum">0</span></div>
-        </div>
+        <div class="col-bid"><div>あなた 入札</div><div class="hand-area" id="p1-bid"></div><div>計:<span id="p1-sum">0</span></div></div>
     </div>
 
-    <div id="status">待機中...</div>
-    
-    <div><div class="area-header">あなたの手札</div><div class="hand-area" id="my-hand"></div></div>
-    
+    <div id="status-text" style="text-align:center; background:rgba(0,0,0,0.3); padding:5px;">待機中...</div>
+
+    <div style="text-align:center; font-size:0.8rem;">あなたの手札</div>
+    <div class="hand-area" id="p1-hand"></div>
+
     <div id="controls">
-        <button class="act fold" id="btn-fold" onclick="doFold()">降りる</button>
-        <button class="act" id="btn-act" onclick="doAction()">決定</button>
+        <button class="act-btn" style="background:var(--danger)" onclick="doFold()">降りる</button>
+        <button class="act-btn" style="background:var(--primary)" onclick="doAction()">決定</button>
     </div>
     <div id="log"></div>
 </div>
 
 <script>
-// エラー検知用: 何かエラーが起きたらアラートを出す
-window.onerror = function(msg, url, line) {
-   alert("エラーが発生しました:\n" + msg);
-   return false;
-};
+// ■■■ 安全対策: エラー表示機能 ■■■
+function showDebug(msg) {
+    const el = document.getElementById('debug-msg');
+    el.style.display = 'block';
+    el.innerText = "エラー: " + msg;
+    console.error(msg);
+}
+window.onerror = function(msg) { showDebug(msg); };
 
-// ▼▼▼ 設定 (書き換え済み) ▼▼▼
+// ■■■ 変数定義 ■■■
+let mode = ''; // 'CPU' or 'ONLINE'
+let myRole = 'p1';
+let db = null;
+let roomId = null;
+let roomRef = null;
+let gs = null; // GameState
+let mySel = []; // 選択中のカードインデックス
+
+// ■■■ Firebase設定 ■■■
 const firebaseConfig = {
   apiKey: "AIzaSyBID6kYSN3Pp4seo0-c-GiYWQJvx80Zf7s",
   authDomain: "auction-game-b3931.firebaseapp.com",
@@ -122,404 +122,265 @@ const firebaseConfig = {
   databaseURL: "https://auction-game-b3931-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
-let db = null;
+// 初期化トライ
 try {
-    // Firebaseが読み込まれているか確認してから初期化
     if (typeof firebase !== 'undefined') {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         db = firebase.database();
-        console.log("Firebase OK");
     } else {
-        console.log("Firebase Script not loaded yet (Offline?)");
+        showDebug("Firebase SDKが読み込まれていません(オフライン?)");
     }
 } catch(e) {
-    console.error("Firebase Init Error:", e);
+    showDebug("Firebase初期化失敗: " + e.message);
 }
 
-// ゲーム変数
-let mode = null;
-let myRole = 'p1';
-let gameState = null;
-let mySelection = [];
-let roomId = null;
-let roomRef = null;
-
-// 画面切り替え
-function showScreen(id) {
+// ■■■ UI操作関数 (ここが動けばボタンは反応する) ■■■
+function switchScreen(id) {
     document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden'));
     document.getElementById('container').classList.add('hidden');
-    
-    if(id === 'game') {
-        document.getElementById('container').classList.remove('hidden');
-    } else {
-        document.getElementById(id).classList.remove('hidden');
-    }
+    if(id === 'game') document.getElementById('container').classList.remove('hidden');
+    else document.getElementById(id).classList.remove('hidden');
 }
 
-function modeSelect(m) {
-    mode = m;
-    if (mode === 'ONLINE') {
-        if (!db) {
-            alert("エラー: Firebaseに接続できていません。インターネット接続を確認してください。");
-            // それでも強制的に画面へ移動させるなら下を使う
-            // showScreen('screen-lobby');
-        } else {
-            showScreen('screen-lobby');
-        }
-    } else {
-        showScreen('game');
-        initCpuGame();
-    }
-}
-
-// ==========================================
-//  CPUモード
-// ==========================================
-function initCpuGame() {
+function startCpuMode() {
+    mode = 'CPU';
     myRole = 'p1';
-    document.getElementById('opp-role').innerText = "CPU (Lv.Strong)";
-    
-    gameState = {
-        status: 'bid',
-        deck: createDeck(),
-        p1: { hand: createHand(), bid: [], list: null, bidDone: false, folded: false },
-        p2: { hand: createHand(), bid: [], list: null, bidDone: false, folded: false },
-        turn: null,
-        msg: "ゲーム開始"
+    switchScreen('game');
+    document.getElementById('p2-name').innerText = "CPU";
+    initGameLocal();
+}
+
+function startOnlineMode() {
+    if (!db) return alert("オンライン機能が利用できません（エラー表示を確認してください）");
+    mode = 'ONLINE';
+    switchScreen('screen-lobby');
+}
+
+// ■■■ ゲームロジック (CPU) ■■■
+function initGameLocal() {
+    gs = {
+        status: 'bid', deck: makeDeck(),
+        p1: { hand: makeHand(), bid: [], list: null, done: false, fold: false },
+        p2: { hand: makeHand(), bid: [], list: null, done: false, fold: false },
+        msg: '入札してください'
     };
-    dealListings();
+    deal();
     render();
 }
 
-function dealListings() {
-    if(gameState.deck.length < 2) {
-        gameState.status = 'end';
-        gameState.msg = "ゲーム終了";
-        render();
-        return;
-    }
-    gameState.p1.list = gameState.deck.pop();
-    gameState.p2.list = gameState.deck.pop();
-    gameState.p1.bid = []; gameState.p2.bid = [];
-    gameState.p1.bidDone = false; gameState.p2.bidDone = false;
-    gameState.p1.folded = false; gameState.p2.folded = false;
-    gameState.status = 'bid';
-    gameState.msg = "入札フェーズ";
+function deal() {
+    if(gs.deck.length < 2) { gs.status='end'; gs.msg='終了'; render(); return; }
+    gs.p1.list = gs.deck.pop();
+    gs.p2.list = gs.deck.pop();
+    gs.p1.bid = []; gs.p2.bid = [];
+    gs.p1.done = false; gs.p2.done = false;
+    gs.p1.fold = false; gs.p2.fold = false;
+    gs.status = 'bid'; gs.msg = '入札フェーズ';
 }
 
-function cpuProcess() {
-    if (gameState.status === 'end') return;
-    const cpu = gameState.p2;
-    const player = gameState.p1;
+function checkCpu() {
+    // CPU思考
+    if(gs.status==='bid' && !gs.p2.done) {
+        // シンプルAI
+        let val = gs.p2.list.val + 7;
+        let budget = val > 15 ? 5 : 2;
+        let c = gs.p2.hand.find(x => Math.abs(x.val - budget) < 3);
+        if(c) {
+            gs.p2.bid.push(c);
+            gs.p2.hand = gs.p2.hand.filter(x => x!==c);
+        } else gs.p2.fold = true;
+        gs.p2.done = true;
+    }
+    // 判定
+    if(gs.status==='bid' && gs.p1.done && gs.p2.done) resolve();
+    render();
+}
 
-    if (gameState.status === 'bid' && !cpu.bidDone) {
-        const potVal = cpu.list.val + 7;
-        let budget = potVal > 20 ? 8 : (potVal > 15 ? 5 : 2);
-        if(potVal < 5 && Math.random() > 0.8) {
-            cpu.folded = true;
+function resolve() {
+    // 簡易判定
+    let s1 = sum(gs.p1.bid), s2 = sum(gs.p2.bid);
+    let w = null;
+    if(gs.p1.fold) w='p2';
+    else if(gs.p2.fold) w='p1';
+    else if(s1 > s2) w='p1';
+    else if(s2 > s1) w='p2';
+    
+    gs.msg = w ? (w==='p1'?'あなたの勝ち':'CPUの勝ち') : '引き分け';
+    gs.status = 'resolve';
+    render();
+    
+    setTimeout(() => {
+        if(w) {
+            gs[w].hand.push(gs.p1.list, gs.p2.list); // 賞品
+            let l = w==='p1'?'p2':'p1';
+            gs[l].hand.push(...gs[l].bid); // 敗者回収
         } else {
-            let best = -1, minDiff = 99;
-            cpu.hand.forEach(c => {
-                let diff = Math.abs(c.val - budget);
-                if(diff < minDiff) { minDiff = diff; best = c.val; }
-            });
-            if(best !== -1) {
-                cpu.bid.push(...removeCardVal(cpu.hand, [best]));
-            } else {
-                cpu.folded = true;
-            }
+             gs.p1.hand.push(...gs.p1.bid);
+             gs.p2.hand.push(...gs.p2.bid);
         }
-        cpu.bidDone = true;
-        checkCpuRound();
-    }
-    else if (gameState.status === 'compare' && gameState.turn === 'p2') {
-        setTimeout(() => {
-            const diff = sum(player.bid) - sum(cpu.bid);
-            const potVal = cpu.list.val + 7;
-            
-            if (sum(cpu.bid) + diff + 1 > potVal && Math.random() > 0.3) {
-                log("CPU: 降り", "sys");
-                cpu.folded = true;
-                resolveRoundLogic();
-                return;
-            }
-            let cands = cpu.hand.filter(c => c.val > diff);
-            if (cands.length === 0) {
-                log("CPU: 降り(手札なし)", "sys");
-                cpu.folded = true;
-                resolveRoundLogic();
-                return;
-            }
-            cands.sort((a,b) => a.val - b.val);
-            const card = cands[0];
-            cpu.bid.push(...removeCardVal(cpu.hand, [card.val]));
-            log(`CPU: 追加 +${card.val}`, "sys");
-            checkCpuRound();
-        }, 1000);
-    }
+        // ソート
+        gs.p1.hand.sort((a,b)=>a.val-b.val);
+        gs.p2.hand.sort((a,b)=>a.val-b.val);
+        deal();
+        render();
+    }, 2000);
 }
 
-function checkCpuRound() {
-    render();
-    const p1 = gameState.p1;
-    const p2 = gameState.p2;
-    if (gameState.status === 'bid') {
-        if (!p1.bidDone) return;
-        if (!p2.bidDone) cpuProcess();
-        else resolveBidsLogic();
-    } else if (gameState.status === 'compare') {
-        resolveBidsLogic();
-    }
-}
-
-// ==========================================
-//  オンラインモード
-// ==========================================
+// ■■■ ゲームロジック (Online) ■■■
 function createRoom() {
-    if(!db) return alert("オンライン機能の初期化に失敗しています");
-    const id = Math.floor(1000 + Math.random() * 9000).toString();
-    initRoom(id, 'p1');
+    let id = Math.floor(Math.random()*8999+1000).toString();
+    joinRoomLogic(id, 'p1');
 }
 function joinRoom() {
-    if(!db) return alert("オンライン機能の初期化に失敗しています");
-    const id = document.getElementById('room-id-input').value;
-    if(!id) return alert("IDを入力してください");
-    initRoom(id, 'p2');
+    let id = document.getElementById('room-id').value;
+    if(!id) return alert("IDを入れてください");
+    joinRoomLogic(id, 'p2');
 }
-function initRoom(id, role) {
+function joinRoomLogic(id, role) {
     roomId = id; myRole = role;
-    roomRef = db.ref('rooms/' + roomId);
-    document.getElementById('lobby-msg').innerText = "接続中...";
-
-    if (role === 'p1') {
+    roomRef = db.ref('rooms/'+id);
+    document.getElementById('lobby-status').innerText = "接続中...";
+    
+    if(role==='p1') {
         roomRef.set({
-            status: 'waiting', deck: createDeck(),
-            p1: { hand: createHand(), bid: [], list: null, connected: true },
-            p2: { hand: createHand(), bid: [], list: null, connected: false },
-            turn: null, msg: "待機中 ID: " + id
-        }).then(startOnlineListener);
-    } else {
-        roomRef.get().then(s => {
-            if (!s.exists()) {
-                document.getElementById('lobby-msg').innerText = "";
-                return alert("部屋がありません");
-            }
-            roomRef.child('p2/connected').set(true);
-            roomRef.child('status').set('ready');
-            startOnlineListener();
+            status: 'waiting', deck: makeDeck(),
+            p1: {hand: makeHand(), bid:[], list:null, done:false},
+            p2: {hand: makeHand(), bid:[], list:null, done:false},
+            msg: "待機中 ID: "+id
         });
     }
-}
-function startOnlineListener() {
-    showScreen('game');
-    roomRef.on('value', s => {
-        const d = s.val();
-        if(!d) return;
-        gameState = d;
+    
+    roomRef.on('value', (s) => {
+        let d = s.val();
+        if(!d) return document.getElementById('lobby-status').innerText = "部屋がありません";
+        gs = d;
+        switchScreen('game');
+        document.getElementById('p2-name').innerText = "オンライン相手";
         render();
-        if(myRole === 'p1') hostLogic(d);
+        if(role==='p1') hostLoop();
     });
-    roomRef.child(myRole + '/connected').onDisconnect().set(false);
 }
-function hostLogic(d) {
-    if (d.status === 'ready') {
-        if (d.deck.length < 2) { roomRef.update({status:'end', msg:'終了！'}); return; }
-        const nd = [...d.deck];
-        roomRef.update({
-            status: 'bid', deck: nd,
-            'p1/list': nd.pop(), 'p2/list': nd.pop(),
-            'p1/bid': [], 'p2/bid': [], 'p1/bidDone': false, 'p2/bidDone': false,
-            msg: '入札してください'
-        });
+
+function hostLoop() {
+    // ホストのみが進める簡易ループ
+    if(gs.status==='waiting' && gs.p2 && gs.p2.connected) { // ※簡易化のため接続判定は省略
+        // 本来はここでreadyチェック
     }
-    if (d.status === 'bid' && d.p1.bidDone && d.p2.bidDone) {
-        resolveBidsLogic();
-    }
+    // ※今回はコード量削減のため、オンラインの完全同期ロジックは
+    //  前のコードが動かない原因切り分けのため一旦最小限にしています。
+    //  まずは「画面が出るか」を確認してください。
 }
 
-// ==========================================
-//  共通ロジック
-// ==========================================
-function resolveBidsLogic() {
-    const p1 = gameState.p1, p2 = gameState.p2;
-    
-    if(p1.folded && p2.folded) { endRound("両者降り。不成立"); return; }
-    if(p1.folded) { endRound("P1降り。P2勝利", 'p2'); return; }
-    if(p2.folded) { endRound("P2降り。P1勝利", 'p1'); return; }
-
-    const s1 = sum(p1.bid), s2 = sum(p2.bid);
-    
-    if (s1 === s2) {
-        updateState({ status: 'bid', 'p1/bidDone': false, 'p2/bidDone': false, msg: `同点(${s1})。追加を` });
-    } else if (s1 > s2) {
-        updateState({ status: 'compare', turn: 'p2', msg: 'P1リード。P2手番' });
-        if(mode === 'CPU') cpuProcess();
-    } else {
-        updateState({ status: 'compare', turn: 'p1', msg: 'P2リード。P1手番' });
-    }
-}
-
-function resolveRoundLogic() {
-    resolveBidsLogic();
-}
-
-function endRound(msg, winnerRole) {
-    updateState({ status: 'resolve', msg: msg });
-    setTimeout(() => {
-        if (winnerRole) {
-            if(mode === 'CPU') {
-                 const winP = gameState[winnerRole];
-                 const loseP = gameState[winnerRole==='p1'?'p2':'p1'];
-                 winP.hand.push(gameState.p1.list, gameState.p2.list);
-                 loseP.hand.push(...loseP.bid);
-                 winP.hand.sort((a,b)=>a.val-b.val);
-                 loseP.hand.sort((a,b)=>a.val-b.val);
-                 dealListings();
-            } else {
-                roomRef.update({ status: 'ready', 'p1/folded':false, 'p2/folded':false });
-            }
-        } else {
-            if(mode === 'CPU') {
-                gameState.p1.hand.push(...gameState.p1.bid);
-                gameState.p2.hand.push(...gameState.p2.bid);
-                gameState.p1.hand.sort((a,b)=>a.val-b.val);
-                gameState.p2.hand.sort((a,b)=>a.val-b.val);
-                dealListings();
-            } else {
-                roomRef.update({ status: 'ready', 'p1/folded':false, 'p2/folded':false });
-            }
-        }
-    }, 3000);
-}
-
-function updateState(updates) {
-    if (mode === 'ONLINE') roomRef.update(updates);
-    else {
-        for(let k in updates) {
-            let parts = k.split('/');
-            if(parts.length===1) gameState[k] = updates[k];
-            else if(parts.length===2) gameState[parts[0]][parts[1]] = updates[k];
-        }
-        render();
-    }
-}
-
-function toggleSelect(idx) {
-    const i = mySelection.indexOf(idx);
-    if (i >= 0) mySelection.splice(i, 1);
-    else mySelection.push(idx);
-    renderHand();
+// ■■■ 共通操作 ■■■
+function toggleSel(idx) {
+    let i = mySel.indexOf(idx);
+    if(i>=0) mySel.splice(i,1); else mySel.push(idx);
+    render();
 }
 
 function doAction() {
-    if (!gameState || gameState.status === 'end' || gameState.status === 'waiting') return;
-    if (gameState.status === 'compare' && gameState.turn !== myRole) return alert("相手の番です");
-    if (mySelection.length === 0) return alert("選択してください");
-
-    const me = gameState[myRole];
-    const opp = gameState[myRole==='p1'?'p2':'p1'];
+    if(gs.status !== 'bid') return;
+    if(mySel.length === 0) return alert("選んでください");
     
-    const selectedCards = [];
-    const newHand = [];
-    me.hand.forEach((c, i) => {
-        if (mySelection.includes(i)) selectedCards.push(c);
-        else newHand.push(c);
-    });
-    const newBid = [...me.bid, ...selectedCards];
-
-    if (gameState.status === 'compare') {
-        if (sum(newBid) <= sum(opp.bid)) {
-            mySelection = []; renderHand();
-            return alert("相手を上回る必要があります");
-        }
+    let me = gs[myRole];
+    let cards = me.hand.filter((_,i) => mySel.includes(i));
+    let left = me.hand.filter((_,i) => !mySel.includes(i));
+    
+    // 更新データ作成
+    let newBid = (me.bid||[]).concat(cards);
+    
+    if(mode === 'CPU') {
+        gs[myRole].hand = left;
+        gs[myRole].bid = newBid;
+        gs[myRole].done = true;
+        checkCpu();
+    } else {
+        // Online Update
+        let u = {};
+        u[myRole+'/hand'] = left;
+        u[myRole+'/bid'] = newBid;
+        u[myRole+'/done'] = true;
+        roomRef.update(u);
     }
-
-    const updates = {};
-    updates[myRole + '/hand'] = newHand;
-    updates[myRole + '/bid'] = newBid;
-    updates[myRole + '/bidDone'] = true;
-    updateState(updates);
-    mySelection = [];
-    
-    if(mode === 'CPU') checkCpuRound();
+    mySel = [];
 }
 
 function doFold() {
-    if (!gameState || gameState.status === 'end') return;
-    if (gameState.status === 'compare' && gameState.turn !== myRole) return;
-    if (confirm("降りますか？")) {
-        const updates = {};
-        updates[myRole + '/folded'] = true;
-        updates[myRole + '/bidDone'] = true;
-        updateState(updates);
-        if(mode === 'CPU') checkCpuRound();
+    if(gs.status !== 'bid') return;
+    if(!confirm("降りますか？")) return;
+    
+    if(mode === 'CPU') {
+        gs[myRole].fold = true;
+        gs[myRole].done = true;
+        checkCpu();
+    } else {
+        roomRef.child(myRole).update({fold:true, done:true});
     }
 }
 
+// ■■■ 描画 ■■■
 function render() {
-    if (!gameState) return;
-    const p1 = gameState.p1, p2 = gameState.p2;
-    const me = gameState[myRole];
-    const opp = gameState[myRole==='p1'?'p2':'p1'];
-
-    document.getElementById('status').innerText = gameState.msg || gameState.status;
-    document.getElementById('deck-n').innerText = (gameState.deck||[]).length;
+    if(!gs) return;
+    document.getElementById('status-text').innerText = gs.msg;
+    document.getElementById('deck-n').innerText = (gs.deck||[]).length;
     
-    if(mode === 'CPU') document.getElementById('opp-role').innerText = "CPU";
-    else document.getElementById('opp-role').innerText = (opp.connected?"接続中":"切断");
-
+    let me = gs[myRole];
+    let op = gs[myRole==='p1'?'p2':'p1'];
+    
+    // 出品
     renderCard('list-me', me.list, false);
-    const showOppList = (gameState.status === 'resolve' || gameState.status === 'end');
-    renderCard('list-opp', opp.list, !showOppList);
-
-    renderHand();
-    const oppDiv = document.getElementById('opp-hand'); oppDiv.innerHTML = '';
-    (opp.hand||[]).forEach(() => {
-        const d = document.createElement('div'); d.className='card back'; d.style.width='30px'; d.style.height='45px';
-        oppDiv.appendChild(d);
+    let showOp = (gs.status==='resolve' || gs.status==='end');
+    renderCard('list-p2', op.list, !showOp);
+    
+    // 手札
+    let hDiv = document.getElementById('p1-hand'); hDiv.innerHTML='';
+    (me.hand||[]).forEach((c,i) => {
+        let d = document.createElement('div');
+        d.className = 'card ' + (mySel.includes(i)?'selected':'');
+        d.innerText = c.val;
+        d.onclick = () => toggleSel(i);
+        hDiv.appendChild(d);
     });
-
-    const hideOppBid = (gameState.status === 'bid' && !showOppList);
-    renderBid('my-bid', me.bid, false);
-    document.getElementById('my-sum').innerText = sum(me.bid);
-    renderBid('opp-bid', opp.bid, hideOppBid);
-    document.getElementById('opp-sum').innerText = hideOppBid ? '?' : sum(opp.bid);
-
-    const isTurn = (gameState.status === 'bid' && !me.bidDone) || (gameState.status === 'compare' && gameState.turn === myRole);
-    document.getElementById('btn-act').disabled = !isTurn;
-    document.getElementById('btn-fold').disabled = !isTurn;
+    
+    // 相手手札
+    let oDiv = document.getElementById('p2-hand'); oDiv.innerHTML='';
+    (op.hand||[]).forEach(() => {
+        let d = document.createElement('div');
+        d.className = 'card back'; d.style.width='30px'; d.style.height='40px';
+        oDiv.appendChild(d);
+    });
+    
+    // 入札
+    renderBid('p1-bid', me.bid, false);
+    document.getElementById('p1-sum').innerText = sum(me.bid);
+    
+    let hideBid = (gs.status==='bid' && !showOp);
+    renderBid('p2-bid', op.bid, hideBid);
+    document.getElementById('p2-sum').innerText = hideBid ? '?' : sum(op.bid);
 }
 
-function renderHand() {
-    const d = document.getElementById('my-hand'); d.innerHTML = '';
-    (gameState[myRole].hand||[]).forEach((c, i) => {
-        const el = document.createElement('div');
-        el.className = 'card' + (mySelection.includes(i)?' selected':'');
-        el.innerText = c.val; el.onclick = () => toggleSelect(i);
-        d.appendChild(el);
-    });
-}
-function renderBid(id, cards, hide) {
-    const d = document.getElementById(id); d.innerHTML = '';
-    (cards||[]).forEach(c => {
-        const el = document.createElement('div'); el.className = 'card '+(hide?'back':'');
-        el.innerText = hide ? '?' : c.val; el.style.width='36px'; el.style.height='54px';
-        d.appendChild(el);
-    });
-}
 function renderCard(id, c, hide) {
-    const el = document.getElementById(id);
+    let el = document.getElementById(id);
     if(!c) { el.className='card back'; el.innerText=''; return; }
-    el.className = 'card '+(hide?'back':''); el.innerText = hide ? '?' : c.val;
+    el.className = 'card '+(hide?'back':'');
+    el.innerText = hide?'?':c.val;
 }
-function log(m, t) {
-    const d = document.createElement('div'); d.className = t==='turn'?'log-turn':'log-sys'; d.innerText = m;
-    document.getElementById('log').prepend(d);
+function renderBid(id, arr, hide) {
+    let el = document.getElementById(id); el.innerHTML='';
+    (arr||[]).forEach(c => {
+        let d = document.createElement('div');
+        d.className = 'card '+(hide?'back':'');
+        d.innerText = hide?'?':c.val;
+        el.appendChild(d);
+    });
 }
 
 // Utils
-function createDeck() { let d=[]; for(let i=0;i<2;i++)for(let v=1;v<=13;v++)d.push({val:v}); return shuffle(d); }
-function createHand() { let d=[]; for(let v=1;v<=13;v++)d.push({val:v}); return d; }
-function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floo
+function makeDeck(){ let d=[]; for(let i=0;i<2;i++)for(let v=1;v<=13;v++)d.push({val:v}); return shuffle(d); }
+function makeHand(){ let d=[]; for(let v=1;v<=13;v++)d.push({val:v}); return d; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function sum(a){ return (a||[]).reduce((t,c)=>t+c.val,0); }
+
+</script>
+</body>
+</html>
