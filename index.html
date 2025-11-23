@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>オークション Game</title>
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -50,12 +51,14 @@ button:disabled { opacity: 0.5; background: #7f8c8d; cursor: default; }
 </head>
 <body>
 
+<!-- 1. タイトル画面 -->
 <div id="screen-title" class="screen">
     <h1>AUCTION</h1>
     <button class="btn-lg btn-cpu" onclick="modeSelect('CPU')">ひとりで遊ぶ<br><span style="font-size:0.8rem">(CPU戦)</span></button>
     <button class="btn-lg btn-online" onclick="modeSelect('ONLINE')">友達と遊ぶ<br><span style="font-size:0.8rem">(オンライン)</span></button>
 </div>
 
+<!-- 2. ロビー画面 (オンライン用) -->
 <div id="screen-lobby" class="screen hidden">
     <h2>オンライン対戦</h2>
     <p>部屋IDを入力 または 作成</p>
@@ -68,6 +71,7 @@ button:disabled { opacity: 0.5; background: #7f8c8d; cursor: default; }
     <button onclick="location.reload()" style="margin-top:30px; background:none; border:1px solid #fff; color:#fff; padding:5px 10px; border-radius:4px;">戻る</button>
 </div>
 
+<!-- 3. ゲーム画面 -->
 <div id="container" class="hidden">
     <button id="back-btn" onclick="location.reload()">TOPへ</button>
     <div><div class="area-header">相手 (<span id="opp-role">Waiting</span>)</div><div class="hand-area" id="opp-hand"></div></div>
@@ -101,7 +105,13 @@ button:disabled { opacity: 0.5; background: #7f8c8d; cursor: default; }
 </div>
 
 <script>
-// ▼▼▼ 設定組み込み済み ▼▼▼
+// エラー検知用: 何かエラーが起きたらアラートを出す
+window.onerror = function(msg, url, line) {
+   alert("エラーが発生しました:\n" + msg);
+   return false;
+};
+
+// ▼▼▼ 設定 (書き換え済み) ▼▼▼
 const firebaseConfig = {
   apiKey: "AIzaSyBID6kYSN3Pp4seo0-c-GiYWQJvx80Zf7s",
   authDomain: "auction-game-b3931.firebaseapp.com",
@@ -109,26 +119,27 @@ const firebaseConfig = {
   storageBucket: "auction-game-b3931.firebasestorage.app",
   messagingSenderId: "821044018378",
   appId: "1:821044018378:web:1cdb25f16ba4fa2da34833",
-  // URLをここに追加しました
   databaseURL: "https://auction-game-b3931-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 let db = null;
-
-// 初期化処理
 try {
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
+    // Firebaseが読み込まれているか確認してから初期化
+    if (typeof firebase !== 'undefined') {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
+        console.log("Firebase OK");
+    } else {
+        console.log("Firebase Script not loaded yet (Offline?)");
     }
-    db = firebase.database();
-    console.log("Firebase initialized successfully");
 } catch(e) {
     console.error("Firebase Init Error:", e);
-    alert("設定エラー: オンライン機能が使えません。コンソールを確認してください。");
 }
 
 // ゲーム変数
-let mode = null; // 'CPU' or 'ONLINE'
+let mode = null;
 let myRole = 'p1';
 let gameState = null;
 let mySelection = [];
@@ -137,12 +148,9 @@ let roomRef = null;
 
 // 画面切り替え
 function showScreen(id) {
-    // 全画面を隠す
-    document.getElementById('screen-title').classList.add('hidden');
-    document.getElementById('screen-lobby').classList.add('hidden');
+    document.querySelectorAll('.screen').forEach(e => e.classList.add('hidden'));
     document.getElementById('container').classList.add('hidden');
     
-    // 指定画面を表示
     if(id === 'game') {
         document.getElementById('container').classList.remove('hidden');
     } else {
@@ -153,7 +161,13 @@ function showScreen(id) {
 function modeSelect(m) {
     mode = m;
     if (mode === 'ONLINE') {
-        showScreen('screen-lobby');
+        if (!db) {
+            alert("エラー: Firebaseに接続できていません。インターネット接続を確認してください。");
+            // それでも強制的に画面へ移動させるなら下を使う
+            // showScreen('screen-lobby');
+        } else {
+            showScreen('screen-lobby');
+        }
     } else {
         showScreen('game');
         initCpuGame();
@@ -161,22 +175,20 @@ function modeSelect(m) {
 }
 
 // ==========================================
-//  CPUモード (ローカル処理)
+//  CPUモード
 // ==========================================
 function initCpuGame() {
     myRole = 'p1';
     document.getElementById('opp-role').innerText = "CPU (Lv.Strong)";
     
-    // 初期状態作成
     gameState = {
         status: 'bid',
         deck: createDeck(),
         p1: { hand: createHand(), bid: [], list: null, bidDone: false, folded: false },
-        p2: { hand: createHand(), bid: [], list: null, bidDone: false, folded: false }, // CPU
+        p2: { hand: createHand(), bid: [], list: null, bidDone: false, folded: false },
         turn: null,
         msg: "ゲーム開始"
     };
-    
     dealListings();
     render();
 }
@@ -202,7 +214,6 @@ function cpuProcess() {
     const cpu = gameState.p2;
     const player = gameState.p1;
 
-    // 1. 同時入札フェーズ
     if (gameState.status === 'bid' && !cpu.bidDone) {
         const potVal = cpu.list.val + 7;
         let budget = potVal > 20 ? 8 : (potVal > 15 ? 5 : 2);
@@ -223,7 +234,6 @@ function cpuProcess() {
         cpu.bidDone = true;
         checkCpuRound();
     }
-    // 2. 比較フェーズ (CPUターン)
     else if (gameState.status === 'compare' && gameState.turn === 'p2') {
         setTimeout(() => {
             const diff = sum(player.bid) - sum(cpu.bid);
@@ -232,15 +242,14 @@ function cpuProcess() {
             if (sum(cpu.bid) + diff + 1 > potVal && Math.random() > 0.3) {
                 log("CPU: 降り", "sys");
                 cpu.folded = true;
-                resolveRoundLogic(); // 修正: 正しい関数呼び出し
+                resolveRoundLogic();
                 return;
             }
-            
             let cands = cpu.hand.filter(c => c.val > diff);
             if (cands.length === 0) {
                 log("CPU: 降り(手札なし)", "sys");
                 cpu.folded = true;
-                resolveRoundLogic(); // 修正
+                resolveRoundLogic();
                 return;
             }
             cands.sort((a,b) => a.val - b.val);
@@ -256,7 +265,6 @@ function checkCpuRound() {
     render();
     const p1 = gameState.p1;
     const p2 = gameState.p2;
-
     if (gameState.status === 'bid') {
         if (!p1.bidDone) return;
         if (!p2.bidDone) cpuProcess();
@@ -267,7 +275,7 @@ function checkCpuRound() {
 }
 
 // ==========================================
-//  オンラインモード (Firebase)
+//  オンラインモード
 // ==========================================
 function createRoom() {
     if(!db) return alert("オンライン機能の初期化に失敗しています");
@@ -315,8 +323,6 @@ function startOnlineListener() {
     });
     roomRef.child(myRole + '/connected').onDisconnect().set(false);
 }
-
-// ホスト進行ロジック
 function hostLogic(d) {
     if (d.status === 'ready') {
         if (d.deck.length < 2) { roomRef.update({status:'end', msg:'終了！'}); return; }
@@ -339,7 +345,6 @@ function hostLogic(d) {
 function resolveBidsLogic() {
     const p1 = gameState.p1, p2 = gameState.p2;
     
-    // 降り判定
     if(p1.folded && p2.folded) { endRound("両者降り。不成立"); return; }
     if(p1.folded) { endRound("P1降り。P2勝利", 'p2'); return; }
     if(p2.folded) { endRound("P2降り。P1勝利", 'p1'); return; }
@@ -356,14 +361,12 @@ function resolveBidsLogic() {
     }
 }
 
-// 修正: 関数名の統一
 function resolveRoundLogic() {
     resolveBidsLogic();
 }
 
 function endRound(msg, winnerRole) {
     updateState({ status: 'resolve', msg: msg });
-    
     setTimeout(() => {
         if (winnerRole) {
             if(mode === 'CPU') {
@@ -403,7 +406,6 @@ function updateState(updates) {
     }
 }
 
-// プレイヤー操作
 function toggleSelect(idx) {
     const i = mySelection.indexOf(idx);
     if (i >= 0) mySelection.splice(i, 1);
@@ -438,7 +440,6 @@ function doAction() {
     updates[myRole + '/hand'] = newHand;
     updates[myRole + '/bid'] = newBid;
     updates[myRole + '/bidDone'] = true;
-    
     updateState(updates);
     mySelection = [];
     
@@ -457,9 +458,6 @@ function doFold() {
     }
 }
 
-// ==========================================
-//  ビュー
-// ==========================================
 function render() {
     if (!gameState) return;
     const p1 = gameState.p1, p2 = gameState.p2;
@@ -524,5 +522,4 @@ function log(m, t) {
 // Utils
 function createDeck() { let d=[]; for(let i=0;i<2;i++)for(let v=1;v<=13;v++)d.push({val:v}); return shuffle(d); }
 function createHand() { let d=[]; for(let v=1;v<=13;v++)d.push({val:v}); return d; }
-function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-function sum(a) { return (a||[]).reduc
+function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floo
