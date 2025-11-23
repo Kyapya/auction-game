@@ -563,4 +563,70 @@ function onRemoteUpdate(snapshot) {
 
 // ■■■ ヘルパー・描画 ■■■
 function shuffle(arr) { for(let i=arr.length-1; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
-function sum(cards) { 
+function sum(cards) { return (cards||[]).reduce((a,c) => a + c.val, 0); }
+function removeCards(hand, vals) {
+    let ret = [];
+    vals.forEach(v => { const i = hand.findIndex(c => c.val === v); if(i !== -1) { ret.push(hand[i]); hand.splice(i, 1); } });
+    return ret;
+}
+function log(msg, type) {
+    const d = document.createElement('div'); d.className = type === 'turn' ? 'log-turn' : 'log-sys'; d.innerText = msg;
+    ui.log.prepend(d);
+}
+
+function updateView() {
+    ui.deckN.innerText = deck.length;
+    ui.cCnt.innerText = cHand.length;
+    
+    ui.cHand.innerHTML = '';
+    cHand.forEach(() => {
+        const d = document.createElement('div'); d.className = 'card back'; d.style.width = '25px'; d.style.height = '38px';
+        ui.cHand.appendChild(d);
+    });
+
+    ui.pHand.innerHTML = '';
+    pHand.forEach((c, i) => {
+        const d = document.createElement('div');
+        d.className = 'card' + (pSelect.includes(i) ? ' selected' : '');
+        d.innerText = c.val;
+        d.onclick = () => toggleCard(i);
+        ui.pHand.appendChild(d);
+    });
+
+    renderCards(ui.pBid, pBid, false);
+    ui.pSum.innerText = sum(pBid);
+    
+    // CPU(相手)の入札: BIDフェーズで自分が未入札なら隠す(簡易) -> Onlineだと同期ズレるので調整
+    // ここでは「相手の入札」はBIDフェーズ中は常に隠す
+    const hideCpu = (phase === 'BID');
+    renderCards(ui.cBid, cBid, hideCpu);
+    ui.cSum.innerText = hideCpu ? '?' : sum(cBid);
+
+    if(pList) { ui.lPlr.innerText = pList.val; ui.lPlr.classList.remove('back'); } else ui.lPlr.innerText = '';
+
+    if(cList) {
+        if(phase === 'RESOLVE') { ui.lCpu.innerText = cList.val; ui.lCpu.classList.remove('back'); }
+        else { ui.lCpu.innerText = '?'; ui.lCpu.classList.add('back'); }
+    } else ui.lCpu.innerText = '';
+
+    const isMyTurn = (phase === 'BID') || (phase === 'COMPARE' && turn === 'PLAYER');
+    ui.btnAct.disabled = !isMyTurn;
+    ui.btnFold.disabled = !isMyTurn;
+    ui.btnAct.innerText = phase === 'BID' ? '入札' : '追加';
+    ui.status.style.background = isMyTurn ? 'rgba(243, 156, 18, 0.4)' : 'rgba(0,0,0,0.3)';
+}
+
+// ★修正済み: style.fontSize を使用
+function renderCards(el, cards, hidden) {
+    el.innerHTML = '';
+    (cards||[]).forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'card ' + (hidden ? 'back' : '');
+        d.innerText = hidden ? '?' : c.val;
+        d.style.width = '36px'; d.style.height = '50px'; d.style.fontSize = '1rem';
+        el.appendChild(d);
+    });
+}
+</script>
+</body>
+</html>
