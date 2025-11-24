@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>オークション (CPU Fixed)</title>
+<title>オークション (Final Fix)</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -419,7 +419,16 @@ function startRound() {
     updateView();
     setTimeout(()=>{ phase='BID'; ui.status.innerText="入札"; updateView(); },800);
 }
-function resolveSimultaneous() { if(!cBid.length) return resolveWin('PLAYER'); checkComparison(); }
+function resolveSimultaneous() { 
+    updateView();
+    if(cBid.length === 0) { 
+        // CPU FOLD
+        log("CPU: 降り", "sys"); 
+        resolveWin('PLAYER'); 
+        return; 
+    }
+    checkComparison(); 
+}
 function checkComparison() {
     let s1=sum(pBid), s2=sum(cBid);
     if(s1===s2) { phase='BID'; ui.status.innerText="同点"; }
@@ -452,7 +461,7 @@ function resetGame() { initLocal(); }
 function discardLists() { pList=null; cList=null; }
 function returnBids() { pHand.push(...pBid); cHand.push(...cBid); pHand.sort((a,b)=>a.val-b.val); cHand.sort((a,b)=>a.val-b.val); }
 
-// ★復元したCPUロジック
+// ★復元: 決定版のCPUロジック
 function cpuSimultaneousBid() {
     const decision = cpuDecideSimultaneous();
     if(decision.type === 'BID') {
@@ -479,7 +488,7 @@ function cpuTurnComparison() {
     }
     let candidates = cHand.filter(c => c.val > diff);
     if(candidates.length === 0) {
-        log("CPU: 降り(手札なし)", "sys"); resolveWin('PLAYER'); return;
+        log("CPU: 降り(手札不足)", "sys"); resolveWin('PLAYER'); return;
     }
     candidates.sort((a,b) => a.val - b.val);
     const playCard = candidates[0];
