@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>オークション (Complete)</title>
+<title>オークション (CPU Fixed)</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -231,7 +231,6 @@ function resetOnlineRoomData(id) {
     }).then(() => {
         ui.oppName.innerText = "Guest"; ui.oppLabel.innerText = "Guest";
         showScreen('game');
-        // リスナーが重複しないよう一旦オフにしてからオン
         roomRef.off();
         roomRef.on('value', onSync);
         setTimeout(hostStartRound, 1000);
@@ -248,7 +247,7 @@ function joinRoom() {
     roomRef.get().then(snap => {
         if(!snap.exists()) {
             document.getElementById('lobby-msg').innerText = "";
-            return alert("部屋が見つかりません。ホストが先に作成してください。");
+            return alert("部屋が見つかりません");
         }
         ui.oppName.innerText = "Host"; ui.oppLabel.innerText = "Host";
         showScreen('game');
@@ -280,12 +279,8 @@ function onSync(snapshot) {
         ui.status.innerText = val.msg;
     }
 
-    // ★修正: オンライン終了画面
-    if(phase === 'END') {
-        showOnlineEndGame();
-    } else {
-        ui.modal.style.display = 'none'; // ゲーム中は閉じる
-    }
+    if(phase === 'END') showOnlineEndGame();
+    else ui.modal.style.display = 'none';
 
     updateView();
 }
@@ -293,37 +288,19 @@ function onSync(snapshot) {
 function showOnlineEndGame() {
     const ps = sum(pHand); const cs = sum(cHand);
     let msg = `あなた: ${ps}点<br>相手: ${cs}点<br><br>`;
-    if(ps > cs) msg += "あなたの勝利！";
-    else if(cs > ps) msg += "相手の勝利...";
-    else msg += "引き分け";
-    
+    if(ps > cs) msg += "あなたの勝利！"; else if(cs > ps) msg += "相手の勝利..."; else msg += "引き分け";
     ui.modalMsg.innerHTML = msg;
-    
-    // ボタン生成
-    let btnsHTML = '';
-    btnsHTML += `<button class="btn-retry" id="btn-rematch" onclick="rematchOnline()">再戦 (Hostのみ)</button>`;
-    btnsHTML += `<button class="btn-top" onclick="location.reload()">TOPに戻る</button>`;
-    ui.modalBtns.innerHTML = btnsHTML;
-    
-    // ゲストは再戦ボタンを押せないようにする（ホスト主導）
-    const btn = document.getElementById('btn-rematch');
+    let btns = `<button class="btn-retry" id="btn-rematch" onclick="rematchOnline()">再戦 (Host)</button><button class="btn-top" onclick="location.reload()">TOPに戻る</button>`;
+    ui.modalBtns.innerHTML = btns;
     if(myRole !== 'p1') {
-        btn.innerText = "ホストの再戦待ち...";
-        btn.disabled = true;
-        btn.style.opacity = 0.6;
+        const b = document.getElementById('btn-rematch');
+        b.innerText = "ホスト待ち..."; b.disabled = true; b.style.opacity = 0.6;
     }
-    
     ui.modal.style.display = 'flex';
 }
+function rematchOnline() { if(myRole === 'p1') resetOnlineRoomData(roomId); }
 
-function rematchOnline() {
-    if(myRole === 'p1') {
-        // ホストが部屋をリセットする
-        resetOnlineRoomData(roomId);
-    }
-}
-
-// ホスト専用ループ
+// ホストループ
 function hostStartRound() {
     if(deck.length < 2) { roomRef.update({ phase: 'END', msg: "ゲーム終了" }); return; }
     let nd = [...deck];
@@ -353,47 +330,26 @@ function resolveSimultaneousOnline() {
     roomRef.update({ p1_done: false, p2_done: false });
     checkComparisonOnline();
 }
-
 function checkComparisonOnline() {
-    const s1 = sum(pBid);
-    const s2 = sum(cBid);
-    let nextPhase = 'COMPARE';
-    let nextTurn = null;
-    let nextMsg = "";
-
-    if(s1 === s2) {
-        nextPhase = 'BID'; nextMsg = `同点(${s1})。追加してください。`;
-    } else if(s1 > s2) {
-        nextTurn = 'p2'; nextMsg = "Guestのターン (Hostリード)";
-    } else {
-        nextTurn = 'p1'; nextMsg = "Hostのターン (Guestリード)";
-    }
-
+    const s1 = sum(pBid); const s2 = sum(cBid);
+    let nextPhase = 'COMPARE'; let nextTurn = null; let nextMsg = "";
+    if(s1 === s2) { nextPhase = 'BID'; nextMsg = `同点(${s1})。追加してください。`; }
+    else if(s1 > s2) { nextTurn = 'p2'; nextMsg = "Guestのターン"; }
+    else { nextTurn = 'p1'; nextMsg = "Hostのターン"; }
     if (phase !== nextPhase || turn !== nextTurn) {
          roomRef.update({ phase: nextPhase, turn: nextTurn, msg: nextMsg });
     }
 }
-
 function resolveWinOnline(winnerRole) {
-    const winnerName = (winnerRole === myRole) ? 'あなた' : '相手';
-    roomRef.update({ phase: 'RESOLVE', msg: `勝者: ${winnerName}` });
-
+    const w = (winnerRole === myRole) ? 'あなた' : '相手';
+    roomRef.update({ phase: 'RESOLVE', msg: `勝者: ${w}` });
     const pot = [pList, cList];
-    let new_p1_hand = [...pHand];
-    let new_p2_hand = [...cHand]; 
-    
-    if(winnerRole === 'p1') {
-        new_p1_hand.push(...pot); new_p2_hand.push(...cBid);      
-    } else {
-        new_p2_hand.push(...pot); new_p1_hand.push(...pBid);      
-    }
-    new_p1_hand.sort((a,b)=>a.val-b.val); new_p2_hand.sort((a,b)=>a.val-b.val);
-    
+    let n1 = [...pHand]; let n2 = [...cHand];
+    if(winnerRole === 'p1') { n1.push(...pot); n2.push(...cBid); }
+    else { n2.push(...pot); n1.push(...pBid); }
+    n1.sort((a,b)=>a.val-b.val); n2.sort((a,b)=>a.val-b.val);
     setTimeout(() => {
-        roomRef.update({
-            p1_hand: new_p1_hand, p2_hand: new_p2_hand,
-            p1_bid: [], p2_bid: [], p1_list: null, p2_list: null, p1_fold: false, p2_fold: false
-        }).then(() => { hostStartRound(); });
+        roomRef.update({ p1_hand: n1, p2_hand: n2, p1_bid: [], p2_bid: [], p1_list: null, p2_list: null, p1_fold: false, p2_fold: false }).then(() => { hostStartRound(); });
     }, 2500);
 }
 
@@ -416,7 +372,6 @@ function action() {
     pSelect.forEach(i => { cards.push(pHand[i]); pHand.splice(i,1); });
     pSelect=[]; cards.reverse();
 
-    // 戻せるようにコピー
     const oldBid = [...pBid]; const oldHand = [...pHand];
     pBid = [...pBid, ...cards];
     updateView();
@@ -429,10 +384,7 @@ function action() {
                 return alert("相手を上回る必要があります");
             }
         }
-        let u = {};
-        u[myRole + '_hand'] = pHand;
-        u[myRole + '_bid'] = pBid;
-        u[myRole + '_done'] = true;
+        let u = {}; u[myRole + '_hand'] = pHand; u[myRole + '_bid'] = pBid; u[myRole + '_done'] = true;
         roomRef.update(u);
     } else {
         log("あなた: 入札/追加", "turn");
@@ -452,13 +404,14 @@ function fold() {
             if(cpu.type==='FOLD') {
                  log("両者降り。不成立", "sys"); discardLists(); returnBids(); startRound();
             } else {
-                 cBid = removeCards(cHand, cpu.cards); resolveWin('CPU');
+                 cBid = [...cBid, ...removeCards(cHand, cpu.cards)];
+                 resolveWin('CPU');
             }
         } else { resolveWin('CPU'); }
     }
 }
 
-// ■ CPU & Local Logic (変更なし)
+// ■ CPU Logic (復元版)
 function startRound() {
     if(deck.length<2) return endGame();
     phase='LISTING'; cList=deck.pop(); pList=deck.pop();
@@ -499,28 +452,50 @@ function resetGame() { initLocal(); }
 function discardLists() { pList=null; cList=null; }
 function returnBids() { pHand.push(...pBid); cHand.push(...cBid); pHand.sort((a,b)=>a.val-b.val); cHand.sort((a,b)=>a.val-b.val); }
 
-// CPU AI
+// ★復元したCPUロジック
 function cpuSimultaneousBid() {
-    let pot=cList.val+7; let b=pot>15?5:2;
-    let c=cHand.find(x=>Math.abs(x.val-b)<3);
-    if(c){ cBid.push(c); cHand=cHand.filter(x=>x!==c); }
+    const decision = cpuDecideSimultaneous();
+    if(decision.type === 'BID') {
+        cBid = [...cBid, ...removeCards(cHand, decision.cards)];
+    }
 }
 function cpuDecideSimultaneous() {
-    let pot=cList.val+7; let b=pot>15?5:2;
-    let c=cHand.find(x=>Math.abs(x.val-b)<3);
-    if(c) return {type:'BID', cards:[c.val]};
-    return {type:'FOLD'};
+    const potVal = cList.val + 7;
+    const budget = potVal > 20 ? 8 : (potVal > 15 ? 5 : 2);
+    if(potVal < 5 && Math.random() > 0.8) return { type: 'FOLD' };
+    let bestCard = -1, minDiff = 99;
+    for(let i=0; i<cHand.length; i++) {
+        let diff = Math.abs(cHand[i].val - budget);
+        if(diff < minDiff) { minDiff = diff; bestCard = cHand[i].val; }
+    }
+    if(bestCard !== -1) return { type: 'BID', cards: [bestCard] };
+    return { type: 'FOLD' };
 }
 function cpuTurnComparison() {
-    let d=sum(pBid)-sum(cBid);
-    let c=cHand.find(x=>x.val>d);
-    if(c){ cBid.push(c); cHand=cHand.filter(x=>x!==c); log(`CPU:追加 +${c.val}`,"sys"); checkComparison(); }
-    else resolveWin('PLAYER');
+    const diff = sum(pBid) - sum(cBid);
+    const potVal = cList.val + 7;
+    if(sum(cBid) + diff + 1 > potVal && Math.random() > 0.3) {
+        log("CPU: 降り", "sys"); resolveWin('PLAYER'); return;
+    }
+    let candidates = cHand.filter(c => c.val > diff);
+    if(candidates.length === 0) {
+        log("CPU: 降り(手札なし)", "sys"); resolveWin('PLAYER'); return;
+    }
+    candidates.sort((a,b) => a.val - b.val);
+    const playCard = candidates[0];
+    cBid = [...cBid, ...removeCards(cHand, [playCard.val])];
+    log(`CPU: 追加 +${playCard.val}`, "sys");
+    checkComparison();
 }
 
 // ■ 共通
 function shuffle(a){ for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
 function sum(a){return (a||[]).reduce((t,c)=>t+c.val,0)}
+function removeCards(hand, vals) {
+    let ret = [];
+    vals.forEach(v => { const i = hand.findIndex(c => c.val === v); if(i !== -1) { ret.push(hand[i]); hand.splice(i, 1); } });
+    return ret;
+}
 function updateView() {
     ui.deckN.innerText = deck.length; ui.cCnt.innerText = cHand.length;
     ui.cHand.innerHTML=''; cHand.forEach(()=>{let d=document.createElement('div');d.className='card back';d.style.width='25px';d.style.height='38px';ui.cHand.appendChild(d)});
